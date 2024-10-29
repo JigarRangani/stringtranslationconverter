@@ -5,8 +5,8 @@ def main():
     st.title("Android String Resource Generator")
 
     # File upload
-    android_file = st.file_uploader("Upload Android string resource sheet", type=["xlsx", "xls"])
-    translation_file = st.file_uploader("Upload translation sheet", type=["xlsx", "xls"])
+    android_file = st.file_uploader("Upload Android string resource sheet there must be two column names string_name,english_value", type=["xlsx", "xls"])
+    translation_file = st.file_uploader("Upload translation sheet second column name english_value and must have english value", type=["xlsx", "xls"])
 
     if android_file and translation_file:
         android_df = pd.read_excel(android_file)
