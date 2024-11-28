@@ -63,10 +63,14 @@ def generate_ios_strings(android_df, translation_df, start_row, end_row):
             english_value = row['english_value']
 
             # Get translation for the current language
-            translation = translation_df.loc[
-                translation_df['english_value'] == english_value, lang
-            ].values[0]
-
+            try
+                translation = translation_df.loc[
+                    translation_df['english_value'] == english_value, lang
+                ].values[0]
+            except KeyError:
+                translation = english_value  # Fallback to English
+                print(f"Warning: No translation found for '{english_value}' in '{lang}'")
+                
             if pd.notna(translation):
                 value = translation
             else:
@@ -97,9 +101,13 @@ def generate_xml(android_df, translation_df, start_row, end_row, platform):
             english_value = row['english_value']
 
             # Get translation for the current language
-            translation = translation_df.loc[
-                translation_df['english_value'] == english_value, lang
-            ].values[0]
+            try
+                translation = translation_df.loc[
+                    translation_df['english_value'] == english_value, lang
+                ].values[0]
+            except KeyError:
+                translation = english_value  # Fallback to English
+                print(f"Warning: No translation found for '{english_value}' in '{lang}'")
 
             if pd.notna(translation):
                 value = translation
