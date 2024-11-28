@@ -63,7 +63,7 @@ def generate_ios_strings(android_df, translation_df, start_row, end_row):
             english_value = row['english_value']
 
             # Get translation for the current language
-            try
+            try:
                 translation = translation_df.loc[
                     translation_df['english_value'] == english_value, lang
                 ].values[0]
@@ -101,7 +101,7 @@ def generate_xml(android_df, translation_df, start_row, end_row, platform):
             english_value = row['english_value']
 
             # Get translation for the current language
-            try
+            try:
                 translation = translation_df.loc[
                     translation_df['english_value'] == english_value, lang
                 ].values[0]
