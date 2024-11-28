@@ -67,7 +67,7 @@ def generate_ios_strings(android_df, translation_df, start_row, end_row):
                 translation = translation_df.loc[
                     translation_df['english_value'] == english_value, lang
                 ].values[0]
-            except KeyError:
+            except (KeyError, IndexError) as e:
                 translation = english_value  # Fallback to English
                 print(f"Warning: No translation found for '{english_value}' in '{lang}'")
                 
@@ -105,7 +105,7 @@ def generate_xml(android_df, translation_df, start_row, end_row, platform):
                 translation = translation_df.loc[
                     translation_df['english_value'] == english_value, lang
                 ].values[0]
-            except KeyError:
+            except (KeyError, IndexError) as e:
                 translation = english_value  # Fallback to English
                 print(f"Warning: No translation found for '{english_value}' in '{lang}'")
 
