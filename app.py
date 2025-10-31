@@ -18,8 +18,22 @@ def main():
     translation_file = st.file_uploader("Upload translation sheet (second column name must be english_value)", type=["xlsx", "xls"])
 
     if android_file and translation_file:
-        android_df = pd.read_excel(android_file)
-        translation_df = pd.read_excel(translation_file)
+        try:
+            android_df = pd.read_excel(android_file)
+            translation_df = pd.read_excel(translation_file)
+        except Exception as e:
+            st.error(f"Error reading Excel files: {e}")
+            return
+
+        # --- File validation ---
+        required_android_cols = ['string_name', 'english_value']
+        if not all(col in android_df.columns for col in required_android_cols):
+            st.error("The Android string resource sheet must contain 'string_name' and 'english_value' columns.")
+            return
+
+        if 'english_value' not in translation_df.columns:
+            st.error("The translation sheet must contain an 'english_value' column to map translations.")
+            return
 
         # Display DataFrames
         st.subheader("String Resource Sheet")
@@ -46,11 +60,18 @@ def main():
     uploaded_file = st.file_uploader("Upload XML/Strings file to convert to sheet", type=["xml", "strings"])
     if uploaded_file:
         if st.button("Convert to Sheet"):
-            if uploaded_file.name.endswith(".xml"):
-                sheet_data = xml_to_sheet(uploaded_file)
-            else:  # Assuming .strings file
-                sheet_data = strings_to_sheet(uploaded_file)
-            st.download_button("Download Sheet", sheet_data.to_csv(index=False), file_name="strings.csv")
+            try:
+                if uploaded_file.name.endswith(".xml"):
+                    sheet_data = xml_to_sheet(uploaded_file)
+                else:  # Assuming .strings file
+                    sheet_data = strings_to_sheet(uploaded_file)
+
+                if not sheet_data.empty:
+                    st.download_button("Download Sheet", sheet_data.to_csv(index=False), file_name="strings.csv")
+                else:
+                    st.warning("The uploaded file appears to be empty or incorrectly formatted.")
+            except Exception as e:
+                st.error(f"An error occurred during file conversion: {e}")
 
 def generate_android_xml(android_df, translation_df, start_row, end_row):
     """Generates separate XML files for each language for Android.
@@ -68,7 +89,7 @@ def generate_android_xml(android_df, translation_df, start_row, end_row):
         dict: A dictionary where keys are language codes and values are the
               corresponding XML content as strings.
     """
-    return generate_xml(android_df, translation_df, start_row, end_row, "android")
+    return generate_string_files(android_df, translation_df, start_row, end_row, "android")
 
 
 def generate_ios_strings(android_df, translation_df, start_row, end_row):
@@ -87,37 +108,10 @@ def generate_ios_strings(android_df, translation_df, start_row, end_row):
         dict: A dictionary where keys are language codes and values are the
               corresponding .strings content.
     """
+    return generate_string_files(android_df, translation_df, start_row, end_row, "ios")
 
-    languages = translation_df.columns[1:]
-    outputs = {}
 
-    for lang in languages:
-        output_string = ""
-        for i in range(start_row, end_row + 1):
-            row = android_df.iloc[i]
-            string_name = row['string_name']
-            english_value = row['english_value']
-
-            # Get translation for the current language
-            try:
-                translation = translation_df.loc[
-                    translation_df['english_value'] == english_value, lang
-                ].values[0]
-            except (KeyError, IndexError) as e:
-                translation = english_value  # Fallback to English
-                print(f"Warning: No translation found for '{english_value}' in '{lang}'")
-                
-            if pd.notna(translation):
-                value = translation
-            else:
-                value = english_value  # Fallback to English
-
-            output_string += f'"{english_value}" = "{value}";\n'  # iOS format
-
-        outputs[lang] = output_string
-    return outputs
-
-def generate_xml(android_df, translation_df, start_row, end_row, platform):
+def generate_string_files(android_df, translation_df, start_row, end_row, platform):
     """Generates XML or .strings files based on the specified platform.
 
     This function iterates through the provided DataFrames to generate
@@ -137,17 +131,15 @@ def generate_xml(android_df, translation_df, start_row, end_row, platform):
         dict: A dictionary where keys are language codes and values are the
               generated file content as strings.
     """
-
     languages = translation_df.columns[1:]
     outputs = {}
 
+    warnings = []
+
     for lang in languages:
+        output_lines = []
         if platform == "android":
-            output_string = '<resources>\n'
-            string_tag = "string"
-        elif platform == "ios":
-            output_string = ""
-            string_tag = '"{string_name}"'
+            output_lines.append('<resources>')
 
         for i in range(start_row, end_row + 1):
             row = android_df.iloc[i]
@@ -156,27 +148,31 @@ def generate_xml(android_df, translation_df, start_row, end_row, platform):
 
             # Get translation for the current language
             try:
-                translation = translation_df.loc[
+                translation_val = translation_df.loc[
                     translation_df['english_value'] == english_value, lang
                 ].values[0]
-            except (KeyError, IndexError) as e:
-                translation = english_value  # Fallback to English
-                print(f"Warning: No translation found for '{english_value}' in '{lang}'")
-
-            if pd.notna(translation):
-                value = translation
-            else:
+                if pd.notna(translation_val) and str(translation_val).strip():
+                    value = translation_val
+                else:
+                    value = english_value  # Fallback to English
+                    warnings.append(f"Empty translation for '{english_value}' in '{lang}'. Using English value.")
+            except (KeyError, IndexError):
                 value = english_value  # Fallback to English
+                warnings.append(f"No translation found for '{english_value}' in '{lang}'. Using English value.")
 
             if platform == "android":
-                output_string += f'    <{string_tag} name="{string_name}">{value}</{string_tag}>\n'
+                output_lines.append(f'    <string name="{string_name}">{value}</string>')
             elif platform == "ios":
-                output_string += f'    {string_tag.format(string_name=string_name)} = "{value}";\n'
+                output_lines.append(f'"{english_value}" = "{value}";')
 
         if platform == "android":
-            output_string += '</resources>'
+            output_lines.append('</resources>')
 
-        outputs[lang] = output_string
+        outputs[lang] = "\n".join(output_lines)
+
+    if warnings:
+        st.warning("Translation warnings:\n\n" + "\n".join(warnings))
+
     return outputs
 
 
