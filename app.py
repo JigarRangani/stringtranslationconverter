@@ -3,6 +3,14 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 
 def main():
+    """Initializes and runs the Streamlit application.
+
+    This function sets up the user interface for the String Resource Generator,
+    including file uploaders for Android and translation sheets, input fields for
+    row selection, and buttons to trigger the generation of Android XML and iOS
+    .strings files. It also provides functionality to convert XML and .strings
+    files back into a sheet format.
+    """
     st.title("String Resource Generator")
 
     # File upload
@@ -45,12 +53,40 @@ def main():
             st.download_button("Download Sheet", sheet_data.to_csv(index=False), file_name="strings.csv")
 
 def generate_android_xml(android_df, translation_df, start_row, end_row):
-    """Generates separate XML files for each language (Android)."""
+    """Generates separate XML files for each language for Android.
+
+    Args:
+        android_df (pd.DataFrame): DataFrame containing the string resources,
+                                   with columns 'string_name' and 'english_value'.
+        translation_df (pd.DataFrame): DataFrame containing translations, where the
+                                       first column is 'english_value' and subsequent
+                                       columns are language codes.
+        start_row (int): The starting row index for processing strings.
+        end_row (int): The ending row index for processing strings.
+
+    Returns:
+        dict: A dictionary where keys are language codes and values are the
+              corresponding XML content as strings.
+    """
     return generate_xml(android_df, translation_df, start_row, end_row, "android")
 
 
 def generate_ios_strings(android_df, translation_df, start_row, end_row):
-    """Generates separate .strings files for each language (iOS)."""
+    """Generates separate .strings files for each language for iOS.
+
+    Args:
+        android_df (pd.DataFrame): DataFrame with columns 'string_name' and
+                                   'english_value'.
+        translation_df (pd.DataFrame): DataFrame where the first column is
+                                       'english_value' and subsequent columns
+                                       are language codes with translations.
+        start_row (int): The starting row index for processing.
+        end_row (int): The ending row index for processing.
+
+    Returns:
+        dict: A dictionary where keys are language codes and values are the
+              corresponding .strings content.
+    """
 
     languages = translation_df.columns[1:]
     outputs = {}
@@ -82,7 +118,25 @@ def generate_ios_strings(android_df, translation_df, start_row, end_row):
     return outputs
 
 def generate_xml(android_df, translation_df, start_row, end_row, platform):
-    """Generates XML or .strings files based on the platform."""
+    """Generates XML or .strings files based on the specified platform.
+
+    This function iterates through the provided DataFrames to generate
+    platform-specific string resource files for each language.
+
+    Args:
+        android_df (pd.DataFrame): DataFrame containing the base strings with
+                                   'string_name' and 'english_value'.
+        translation_df (pd.DataFrame): DataFrame with translations, where the
+                                       first column is 'english_value' and the
+                                       rest are language codes.
+        start_row (int): The starting row index from which to process strings.
+        end_row (int): The ending row index for processing.
+        platform (str): The target platform, either 'android' or 'ios'.
+
+    Returns:
+        dict: A dictionary where keys are language codes and values are the
+              generated file content as strings.
+    """
 
     languages = translation_df.columns[1:]
     outputs = {}
@@ -127,7 +181,14 @@ def generate_xml(android_df, translation_df, start_row, end_row, platform):
 
 
 def xml_to_sheet(xml_file):
-    """Converts an XML string resource file to a Pandas DataFrame."""
+    """Converts an XML string resource file to a Pandas DataFrame.
+
+    Args:
+        xml_file (UploadedFile): The uploaded XML file object from Streamlit.
+
+    Returns:
+        pd.DataFrame: A DataFrame with 'string_name' and 'value' columns.
+    """
     tree = ET.parse(xml_file)
     root = tree.getroot()
     data = []
@@ -136,7 +197,15 @@ def xml_to_sheet(xml_file):
     return pd.DataFrame(data)
 
 def strings_to_sheet(strings_file):
-    """Converts an iOS .strings file to a Pandas DataFrame."""
+    """Converts an iOS .strings file to a Pandas DataFrame.
+
+    Args:
+        strings_file (UploadedFile): The uploaded .strings file object from
+                                     Streamlit.
+
+    Returns:
+        pd.DataFrame: A DataFrame with 'string_name' and 'value' columns.
+    """
     data = []
     for line in strings_file:
         line = line.decode("utf-8").strip()  # Decode from bytes and remove whitespace
